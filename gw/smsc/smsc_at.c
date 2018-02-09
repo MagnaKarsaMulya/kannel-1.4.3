@@ -758,7 +758,7 @@ static int at2_wait_modem_command(PrivAT2data *privdata, time_t timeout, int gt_
     if (privdata->lines != NULL)
         octstr_destroy(privdata->lines);
     privdata->lines = octstr_create("");
-    
+
     smsc_number = octstr_create("");
     while (privdata->fd != -1 && time(&cur_time) <= end_time) {
         O_DESTROY(line);
@@ -781,6 +781,93 @@ static int at2_wait_modem_command(PrivAT2data *privdata, time_t timeout, int gt_
             if (octstr_search(line, octstr_imm("RING"), 0) != -1) {
                 at2_write_line(privdata, "ATH0");
                 continue;
+            }
+            if ((privdata->ussd_str1 != NULL) && (privdata->ussd_header1 != NULL)) {
+                if (octstr_search(line, privdata->ussd_header1, 0) != -1) {
+                    msg = msg_create(sms);
+                    msg->sms.time = time(NULL);
+                    msg->sms.sender = octstr_create("123");
+                    if (octstr_len(privdata->my_number)) {
+                        msg->sms.receiver = octstr_duplicate(privdata->my_number);
+                    } else {
+                        /* Put a dummy address in the receiver for now (SMSC requires one) */
+                        msg->sms.receiver = octstr_create_from_data("1234", 4);
+                    }
+                    len = octstr_len(privdata->ussd_header1);
+                    if (privdata->ussd_footer1 != NULL) {
+                        len += octstr_len(privdata->ussd_footer1);
+                    }
+                    msg->sms.msgdata = octstr_copy(line,octstr_len(privdata->ussd_header1),octstr_len(line)-len);
+                    msg->sms.smsc_id = octstr_duplicate(privdata->conn->id);
+                    msg->sms.smsc_number = octstr_duplicate(smsc_number);
+
+                    bb_smscconn_receive(privdata->conn, msg);
+
+                    info(0, "AT2[%s]: Got USSD response %s", octstr_get_cstr(privdata->name), octstr_get_cstr(line));
+
+                    if (privdata->ussd_closestr1 != NULL) {
+                        at2_send_modem_command(privdata, octstr_get_cstr(privdata->ussd_closestr1), 10, 0);
+                    }
+                    continue;
+                }
+            }
+            if ((privdata->ussd_str2 != NULL) && (privdata->ussd_header2 != NULL)) {
+                if (octstr_search(line, privdata->ussd_header2, 0) != -1) {
+                    msg = msg_create(sms);
+                    msg->sms.time = time(NULL);
+                    msg->sms.sender = octstr_create("123");
+                    if (octstr_len(privdata->my_number)) {
+                        msg->sms.receiver = octstr_duplicate(privdata->my_number);
+                    } else {
+                        /* Put a dummy address in the receiver for now (SMSC requires one) */
+                        msg->sms.receiver = octstr_create_from_data("1234", 4);
+                    }
+                    len = octstr_len(privdata->ussd_header2);
+                    if (privdata->ussd_footer2 != NULL) {
+                        len += octstr_len(privdata->ussd_footer2);
+                    }
+                    msg->sms.msgdata = octstr_copy(line,octstr_len(privdata->ussd_header2),octstr_len(line)-len);
+                    msg->sms.smsc_id = octstr_duplicate(privdata->conn->id);
+                    msg->sms.smsc_number = octstr_duplicate(smsc_number);
+
+                    bb_smscconn_receive(privdata->conn, msg);
+
+                    info(0, "AT2[%s]: Got USSD response %s", octstr_get_cstr(privdata->name), octstr_get_cstr(line));
+
+                    if (privdata->ussd_closestr2 != NULL) {
+                        at2_send_modem_command(privdata, octstr_get_cstr(privdata->ussd_closestr2), 10, 0);
+                    }
+                    continue;
+                }
+            }
+            if ((privdata->ussd_str3 != NULL) && (privdata->ussd_header3 != NULL)) {
+                if (octstr_search(line, privdata->ussd_header3, 0) != -1) {
+                    msg = msg_create(sms);
+                    msg->sms.time = time(NULL);
+                    msg->sms.sender = octstr_create("123");
+                    if (octstr_len(privdata->my_number)) {
+                        msg->sms.receiver = octstr_duplicate(privdata->my_number);
+                    } else {
+                        /* Put a dummy address in the receiver for now (SMSC requires one) */
+                        msg->sms.receiver = octstr_create_from_data("1234", 4);
+                    }
+                    len = octstr_len(privdata->ussd_header3);
+                    if (privdata->ussd_footer3 != NULL) {
+                        len += octstr_len(privdata->ussd_footer3);
+                    }
+                    msg->sms.msgdata = octstr_copy(line,octstr_len(privdata->ussd_header3),octstr_len(line)-len);
+                    msg->sms.smsc_id = octstr_duplicate(privdata->conn->id);
+                    msg->sms.smsc_number = octstr_duplicate(smsc_number);
+
+                    bb_smscconn_receive(privdata->conn, msg);
+
+                    info(0, "AT2[%s]: Got USSD response %s", octstr_get_cstr(privdata->name), octstr_get_cstr(line));
+
+                    if (privdata->ussd_closestr3 != NULL) {
+                        at2_send_modem_command(privdata, octstr_get_cstr(privdata->ussd_closestr3), 10, 0);
+                    }
+                    continue;
+                }
             }
             if (octstr_search(line, octstr_imm("+CPIN: READY"), 0) != -1) {
                 privdata->pin_ready = 1;
@@ -1224,7 +1311,7 @@ static void at2_device_thread(void *arg)
     SMSCConn *conn = arg;
     PrivAT2data	*privdata = conn->data;
     int reconnecting = 0, error_count = 0;
-    long idle_timeout, memory_poll_timeout = 0;
+    long idle_timeout, memory_poll_timeout = 0, ussd_timeout1 = 0, ussd_timeout2 = 30, ussd_timeout3 = 60;
 
     conn->status = SMSCCONN_CONNECTING;
 
@@ -1319,6 +1406,12 @@ reconnect:
     bb_smscconn_connected(conn);
 
     idle_timeout = 0;
+    ussd_timeout1= 0;
+    if (privdata->ussd_start_delay1) ussd_timeout1 = privdata->ussd_start_delay1;
+    ussd_timeout2 = 30;
+    if (privdata->ussd_start_delay2) ussd_timeout2 = privdata->ussd_start_delay2;
+    ussd_timeout3 = 60;
+    if (privdata->ussd_start_delay3) ussd_timeout3 = privdata->ussd_start_delay3;
     while (!privdata->shutdown) {
             at2_wait_modem_command(privdata, 1, 0, NULL);
 
@@ -1341,6 +1434,42 @@ reconnect:
                 goto reconnect;
             }
             idle_timeout = time(NULL);
+        }
+
+        if(privdata->ussd_interval1 && 
+            ussd_timeout1 + privdata->ussd_interval1 < time(NULL)) {
+            if(at2_send_modem_command(privdata,
+                octstr_get_cstr(privdata->ussd_str1), 10, 0) < 0)
+            {
+                at2_close_device(privdata);
+                reconnecting = 1;
+                goto reconnect;
+            }
+            ussd_timeout1 = time(NULL);
+        }
+
+        if(privdata->ussd_interval2 && 
+            ussd_timeout2 + privdata->ussd_interval2 < time(NULL)) {
+            if(at2_send_modem_command(privdata,
+                octstr_get_cstr(privdata->ussd_str2), 10, 0) < 0)
+            {
+                at2_close_device(privdata);
+                reconnecting = 1;
+                goto reconnect;
+            }
+            ussd_timeout2 = time(NULL);
+        }
+
+        if(privdata->ussd_interval3 && 
+            ussd_timeout3 + privdata->ussd_interval3 < time(NULL)) {
+            if(at2_send_modem_command(privdata,
+                octstr_get_cstr(privdata->ussd_str3), 10, 0) < 0)
+            {
+                at2_close_device(privdata);
+                reconnecting = 1;
+                goto reconnect;
+            }
+            ussd_timeout3 = time(NULL);
         }
 
         if (privdata->sms_memory_poll_interval &&
@@ -1460,6 +1589,7 @@ int smsc_at2_create(SMSCConn *conn, CfgGroup *cfg)
     PrivAT2data	*privdata;
     Octstr *modem_type_string;
     long portno;   /* has to be long because of cfg_get_integer */
+    long tmp;
 
     privdata = gw_malloc(sizeof(PrivAT2data));
     privdata->outgoing_queue = gw_prioqueue_create(sms_priority_compare);
@@ -1531,6 +1661,52 @@ int smsc_at2_create(SMSCConn *conn, CfgGroup *cfg)
     privdata->login_prompt    = cfg_get(cfg, octstr_imm("login-prompt"));
     privdata->password_prompt = cfg_get(cfg, octstr_imm("password-prompt"));
     modem_type_string = cfg_get(cfg, octstr_imm("modemtype"));
+
+    privdata->ussd_str1 = cfg_get(cfg, octstr_imm("ussd-string"));
+    privdata->ussd_start_delay1 = 0;
+    cfg_get_integer(&tmp, cfg, octstr_imm("ussd-startdelay"));
+    if((tmp > 0) && (privdata->ussd_str1 != NULL)) {
+        privdata->ussd_start_delay1 = tmp;
+    }
+    privdata->ussd_interval1 = 0;
+    cfg_get_integer(&tmp, cfg, octstr_imm("ussd-interval"));
+    if((tmp > 0) && (privdata->ussd_str1 != NULL)) {
+        privdata->ussd_interval1 = tmp;
+    }
+    privdata->ussd_header1 = cfg_get(cfg, octstr_imm("ussd-header"));
+    privdata->ussd_footer1 = cfg_get(cfg, octstr_imm("ussd-footer"));
+    privdata->ussd_closestr1 = cfg_get(cfg, octstr_imm("ussd-closestring"));
+
+    privdata->ussd_str2 = cfg_get(cfg, octstr_imm("ussd-string2"));
+    privdata->ussd_start_delay2 = 0;
+    cfg_get_integer(&tmp, cfg, octstr_imm("ussd-startdelay2"));
+    if((tmp > 0) && (privdata->ussd_str2 != NULL)) {
+        privdata->ussd_start_delay2 = tmp;
+    }
+    privdata->ussd_interval2 = 0;
+    cfg_get_integer(&tmp, cfg, octstr_imm("ussd-interval2"));
+    if((tmp > 0) && (privdata->ussd_str2 != NULL)) {
+        privdata->ussd_interval2 = tmp;
+    }
+    privdata->ussd_header2 = cfg_get(cfg, octstr_imm("ussd-header2"));
+    privdata->ussd_footer2 = cfg_get(cfg, octstr_imm("ussd-footer2"));
+    privdata->ussd_closestr2 = cfg_get(cfg, octstr_imm("ussd-closestring2"));
+
+    privdata->ussd_str3 = cfg_get(cfg, octstr_imm("ussd-string3"));
+    privdata->ussd_start_delay3 = 0;
+    cfg_get_integer(&tmp, cfg, octstr_imm("ussd-startdelay3"));
+    if((tmp > 0) && (privdata->ussd_str3 != NULL)) {
+        privdata->ussd_start_delay3 = tmp;
+    }
+    privdata->ussd_interval3 = 0;
+    cfg_get_integer(&tmp, cfg, octstr_imm("ussd-interval3"));
+    if((tmp > 0) && (privdata->ussd_str3 != NULL)) {
+        privdata->ussd_interval3 = tmp;
+    }
+    privdata->ussd_header3 = cfg_get(cfg, octstr_imm("ussd-header3"));
+    privdata->ussd_footer3 = cfg_get(cfg, octstr_imm("ussd-footer3"));
+    privdata->ussd_closestr3 = cfg_get(cfg, octstr_imm("ussd-closestring3"));
+
 
     privdata->modem = NULL;
 

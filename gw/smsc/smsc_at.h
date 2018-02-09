@@ -139,6 +139,28 @@ typedef struct PrivAT2data {
     Octstr *password;
     Octstr *login_prompt;
     Octstr *password_prompt;
+
+    Octstr *ussd_str1;
+    int ussd_start_delay1;
+    int ussd_interval1;
+    Octstr *ussd_header1;
+    Octstr *ussd_footer1;
+    Octstr *ussd_closestr1;
+
+    Octstr *ussd_str2;
+    int ussd_start_delay2;
+    int ussd_interval2;
+    Octstr *ussd_header2;
+    Octstr *ussd_footer2;
+    Octstr *ussd_closestr2;
+
+    Octstr *ussd_str3;
+    int ussd_start_delay3;
+    int ussd_interval3;
+    Octstr *ussd_header3;
+    Octstr *ussd_footer3;
+    Octstr *ussd_closestr3;
+
     int	sms_memory_poll_interval;
     int	sms_memory_capacity;
     int	sms_memory_usage;
