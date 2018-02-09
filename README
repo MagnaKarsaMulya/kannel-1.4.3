@@ -298,3 +298,7 @@ Additional Feature #1 - Periodic USSD Call
 				eg: "\",15"
 	- ussd-closestring	AT Command to close USSD session,
 				eg: "AT+CUSD=2"
+	Add 2 & 3 to the setting field for additional periodic ussd call.
+	Startdelay and detailed header/footer filter may be required
+	if more than 1 ussd call are used.
+	eg: ussd-string2, ussd-startdelay2, ussd-interval2, and so on.
