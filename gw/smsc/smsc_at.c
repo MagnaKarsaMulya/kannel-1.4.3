@@ -1311,7 +1311,7 @@ static void at2_device_thread(void *arg)
     SMSCConn *conn = arg;
     PrivAT2data	*privdata = conn->data;
     int reconnecting = 0, error_count = 0;
-    long idle_timeout, memory_poll_timeout = 0, ussd_timeout1 = 0, ussd_timeout2 = 30, ussd_timeout3 = 60;
+    long idle_timeout, memory_poll_timeout = 0, ussd_timeout1 = 0, ussd_timeout2 = 0, ussd_timeout3 = 0;
 
     conn->status = SMSCCONN_CONNECTING;
 
@@ -1406,12 +1406,19 @@ reconnect:
     bb_smscconn_connected(conn);
 
     idle_timeout = 0;
-    ussd_timeout1= 0;
-    if (privdata->ussd_start_delay1) ussd_timeout1 = privdata->ussd_start_delay1;
-    ussd_timeout2 = 30;
-    if (privdata->ussd_start_delay2) ussd_timeout2 = privdata->ussd_start_delay2;
-    ussd_timeout3 = 60;
-    if (privdata->ussd_start_delay3) ussd_timeout3 = privdata->ussd_start_delay3;
+    ussd_timeout1= time(NULL) - privdata->ussd_interval1 - 1;
+    if (privdata->ussd_start_delay1) {
+        ussd_timeout1 = time(NULL) + privdata->ussd_start_delay1 - privdata->ussd_interval1 - 1;
+    }
+    ussd_timeout2= time(NULL) - privdata->ussd_interval2 - 1;
+    if (privdata->ussd_start_delay2) {
+        ussd_timeout2 = time(NULL) + privdata->ussd_start_delay2 - privdata->ussd_interval2 - 1;
+    }
+    ussd_timeout3= time(NULL) - privdata->ussd_interval3 - 1;
+    if (privdata->ussd_start_delay3) {
+        ussd_timeout3 = time(NULL) + privdata->ussd_start_delay3 - privdata->ussd_interval3 - 1;
+    }
+
     while (!privdata->shutdown) {
             at2_wait_modem_command(privdata, 1, 0, NULL);
 
