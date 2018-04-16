@@ -282,23 +282,3 @@ Feedback and more information
 		devel-subscribe@kannel.org
 
 	(You'll get further instructions via automatic reply mails.)
-
-Additional Feature #1 - Periodic USSD Call
-	Additional setting in smsc group to send USSD periodically,
-	received reply will be sent to listener as SMS message.
-	- ussd-string		AT Command to send USSD,
-				eg: "AT+CUSD=1,*123#"
-	- ussd-startdelay	(optional) delay before USSD called
-				for the first time (in second), default 0
-	- ussd-interval		interval between USSD calls (in second),
-				eg: 600 (for 10 minutes)
-	- ussd-header		USSD reply header detection string,
-				eg: "+CUSD: 1,\""
-	- ussd-footer		USSD reply footer detection string,
-				eg: "\",15"
-	- ussd-closestring	AT Command to close USSD session,
-				eg: "AT+CUSD=2"
-	Add 2 & 3 to the setting field for additional periodic ussd call.
-	Startdelay and detailed header/footer filter may be required
-	if more than 1 ussd call are used.
-	eg: ussd-string2, ussd-startdelay2, ussd-interval2, and so on.

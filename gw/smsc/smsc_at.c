@@ -766,22 +766,6 @@ static int at2_wait_modem_command(PrivAT2data *privdata, time_t timeout, int gt_
             octstr_append(privdata->lines, line);
             octstr_append_cstr(privdata->lines, "\n");
 
-            if (octstr_search(line, octstr_imm("SIM PIN"), 0) != -1) {
-                ret = 2;
-                goto end;
-            }
-            if (octstr_search(line, octstr_imm("OK"), 0) != -1) {
-                ret = 0;
-                goto end;
-            }
-            if ((gt_flag ) && (octstr_search(line, octstr_imm(">"), 0) != -1)) {
-                ret = 1;
-                goto end;
-            }
-            if (octstr_search(line, octstr_imm("RING"), 0) != -1) {
-                at2_write_line(privdata, "ATH0");
-                continue;
-            }
             if ((privdata->ussd_str1 != NULL) && (privdata->ussd_header1 != NULL)) {
                 if (octstr_search(line, privdata->ussd_header1, 0) != -1) {
                     msg = msg_create(sms);
@@ -868,6 +852,22 @@ static int at2_wait_modem_command(PrivAT2data *privdata, time_t timeout, int gt_
                     }
                     continue;
                 }
+            }
+            if (octstr_search(line, octstr_imm("SIM PIN"), 0) != -1) {
+                ret = 2;
+                goto end;
+            }
+            if (octstr_search(line, octstr_imm("OK"), 0) != -1) {
+                ret = 0;
+                goto end;
+            }
+            if ((gt_flag ) && (octstr_search(line, octstr_imm(">"), 0) != -1)) {
+                ret = 1;
+                goto end;
+            }
+            if (octstr_search(line, octstr_imm("RING"), 0) != -1) {
+                at2_write_line(privdata, "ATH0");
+                continue;
             }
             if (octstr_search(line, octstr_imm("+CPIN: READY"), 0) != -1) {
                 privdata->pin_ready = 1;
